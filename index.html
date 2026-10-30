@@ -54,7 +54,7 @@ const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,pc=v=>v==null?'–':
 const col=p=>p==null?'var(--mu)':p>=75?'var(--ok)':p>=50?'var(--ac)':p>=35?'var(--wn)':'var(--bad)';
 const exL=e=>/^midterm_(\d+)$/.test(e)?e.replace(/^midterm_(\d+)$/,'Mid-term $1'):e==='endterm'?'End term':e;
 const REQ=['id','Student_name','campus_name','admission_year','Semester','course_id','course_name','exam_type','obtained_grades_text','max_grades','Marks','cplm_id'];
-const API_URL='PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+const API_URL='https://script.google.com/macros/s/AKfycbx5wXN2u-Z0pun9zaxMVfUpxha3zqh_1TpNachmHYvOCWbmuNurnbr-Ecjg28SFzydhwQ/exec';
 // [campus, batch year, current semester]: End term is tracked for semesters 1..N, Mid term only for N.
 const PLAN_ALL=[['GDG',2023,7],['ADYPU',2024,5],['ADYPU',2025,3],['SSU',2024,5],['SSU',2025,3],['SAGE',2025,3],['SAGESELECT',2024,5],['VGUJ',2025,3]];
 let PLAN=[],UPD=0,CRED=null;try{CRED=JSON.parse(sessionStorage.getItem('cr')||'null')}catch(e){}
