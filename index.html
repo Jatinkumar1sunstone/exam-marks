@@ -113,6 +113,7 @@ async function loadData(){
   if(j.error){CRED=null;sessionStorage.removeItem('cr');showLogin(j.error);return}
   ROWS=normSub(j.subject);CUM=normCum(j.cumulative);UPD=j.updated;
   PLAN=j.user.role==='admin'?PLAN_ALL:PLAN_ALL.filter(p=>j.user.campuses.includes(p[0].toUpperCase()));
+  
   $('#login').hidden=true;$('#app').hidden=false;$('#err').textContent='';
   $('#who').textContent=j.user.email+' · '+(j.user.role==='admin'?'Admin':'Viewer: '+j.user.campuses.join(', '));
   const A=j.access;$('#acc').hidden=!A;
