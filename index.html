@@ -9,7 +9,7 @@
 *{box-sizing:border-box}[hidden]{display:none!important}html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
-h1{font-size:22px;margin:0}h2{font-size:16px;margin:0 0 10px}
+h1{font-size:22px;margin:0}h2{font-size:15px;margin:0 0 12px}
 .top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
 .sub{color:var(--mu);font-size:13px}
 .bar-f{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
@@ -21,7 +21,7 @@ button.on{border-color:var(--ac);color:var(--ac);font-weight:600}
 .k{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:12px}
 .k b{display:block;font-size:22px;line-height:1.2}.k span{color:var(--mu);font-size:12.5px}
 .k small{display:block;font-size:12px;color:var(--mu);margin-top:2px}
-section{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:14px;margin-bottom:16px}
+section{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:18px;margin-bottom:18px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:820px){.g2{grid-template-columns:1fr}}
 .w{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}
@@ -47,16 +47,15 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 <div class="top"><div><h1>Exam marks dashboard</h1><div class="sub" id="meta"></div></div>
 <div style="text-align:right"><div class="sub" id="who"></div><div style="margin-top:4px"><button id="rf">Refresh data</button> <button id="so">Sign out</button></div></div></div>
 <div class="msg" id="err"></div>
-<div class="bar-f"><select id="fEx" aria-label="Exam"></select><select id="fCa" aria-label="Campus"></select><select id="fBa" aria-label="Batch"></select></div>
+<div class="bar-f"><select id="fEx" aria-label="Exam"></select><select id="fCa" aria-label="Campus"></select><select id="fBa" aria-label="Batch"></select><select id="fSm" aria-label="Semester"></select></div>
 <div class="kpis" id="kpis"></div>
-<section><h2>Marks to check: campus, batch and semester</h2><div class="w" id="tracker"></div><p class="note">End term for every semester, Mid-term only for the current one (a dash means not needed). Available = every subject or student has marks. Partial = some are missing. Tap a subject-wise cell to filter to that batch and exam.</p></section>
-<section><h2>End term marks</h2><div class="w" id="trkEnd"></div></section>
-<section><h2>Mid term marks</h2><div class="w" id="trkMid"></div></section>
-<section><h2>Top performers</h2><div style="margin-bottom:8px"><button id="tTop" class="on">Top 10</button> <button id="tLow">Needs attention</button></div><div class="w" id="perf"></div><p class="note">Average % across a student’s scored subjects (absent and pending are left out). At least 2 scored subjects needed.</p></section>
-<section><h2>Student-wise semester funnel</h2><div class="w" id="funnel"></div><p class="note" id="funNote"></p></section>
+<section><h2>Student performance by semester</h2><div class="w" id="funnel"></div><p class="note" id="funNote"></p></section>
+<section><h2>End term marks status</h2><div class="w" id="trkEnd"></div><p class="note">Tap a Subject-wise cell to filter the dashboard to that batch and exam.</p></section>
+<section><h2>Mid term marks status</h2><div class="w" id="trkMid"></div></section>
+<section><h2>Top performers</h2><div style="margin-bottom:8px"><button id="tTop" class="on">Top 10</button> <button id="tLow">Needs attention</button></div><div class="w" id="perf"></div></section>
 </main>
 <script>
-let CUM=[],ROWS=[],F={exam:'all',campus:'all',batch:'all'},tab='top',fname='mid_sem_-_Sheet4.csv';
+let CUM=[],ROWS=[],F={exam:'all',campus:'all',batch:'all',sem:'all'},tab='top',fname='mid_sem_-_Sheet4.csv';
 const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,pc=v=>v==null?'–':v.toFixed(1)+'%';
 const col=p=>p==null?'var(--mu)':p>=75?'var(--ok)':p>=50?'var(--ac)':p>=35?'var(--wn)':'var(--bad)';
@@ -75,52 +74,58 @@ function normSub(d){return d.filter(r=>r.id).map(r=>{
  if(m==='Not Available'||o==='')st='pending';else if(m==='Incorrect')st='incorrect';
  else if(o.toUpperCase()==='AB')st='absent';else if(isNaN(v))st='incorrect';
  const sem=(r.Semester||'').replace('Semester ','Sem ');
- return{id:r.id,name:r.Student_name,campus:r.campus_name,bid:r.cplm_id,yr:r.admission_year,sm:sem,sk:skf(r.campus_name,r.admission_year,r.Semester),bl:r.campus_name+' · '+r.admission_year+' batch · '+sem,
+ return{id:r.id,name:r.Student_name,campus:r.campus_name,bid:r.cplm_id,yr:r.admission_year,sm:sem,sk:skf(r.campus_name,r.admission_year,r.Semester),n:+((sem.match(/\d+/)||[0])[0]),bl:r.campus_name+' · '+r.admission_year+' batch',
   cid:r.course_id,course:(r.course_name||'').replace(/[\u2060\u200b]/g,'').replace(/ - Exam$/,'').trim(),ex:canon(r.exam_type||''),mx,st,pct:st==='scored'&&mx?v/mx*100:null}})}
 function normCum(d){return d.filter(r=>r.student_id).map(r=>{
- const o=(r.obtained_grades_text||'').trim(),ok=(r.marks_status||'').trim()==='Available'&&o!==''&&!isNaN(parseFloat(o)),k=skf(r.campus,r.batch,r.semester_label);
- return{id:r.student_id,name:r.student_name,campus:r.campus,yr:r.batch,sk:k,bid:k,ex:canon(r.exam_type||''),st:ok?'scored':'pending'}})}
+ const mx=parseFloat(r.max_grades),o=(r.obtained_grades_text||'').trim(),ok=(r.marks_status||'').trim()==='Available'&&o!==''&&!isNaN(parseFloat(o)),k=skf(r.campus,r.batch,r.semester_label);
+ return{id:r.student_id,name:r.student_name,campus:r.campus,yr:r.batch,sk:k,bid:k,ex:canon(r.exam_type||''),st:ok?'scored':'pending',n:+((String(r.semester_label||'').match(/\d+/)||[0])[0]),v:ok&&mx>0?parseFloat(o)/mx*100:null}})}
 function fill(s,list,v){const e=$(s);e.innerHTML=list.map(x=>`<option value="${esc(x[0])}">${esc(x[1])}</option>`).join('');e.value=list.some(x=>x[0]===v)?v:list[0][0]}
 function opts(){
- fill('#fEx',[['all','All exams'],...[...new Set(ROWS.map(r=>r.ex))].sort().map(e=>[e,exL(e)])],F.exam);
- fill('#fCa',[['all','All campuses'],...[...new Set(ROWS.map(r=>r.campus))].sort().map(e=>[e,e])],F.campus);
- const b=grp(ROWS.filter(r=>F.campus==='all'||r.campus===F.campus),r=>r.bid);
- fill('#fBa',[['all','All batches'],...[...b].map(([k,v])=>[k,v[0].bl]).sort((a,c)=>a[1].localeCompare(c[1]))],F.batch);
- F.exam=$('#fEx').value;F.campus=$('#fCa').value;F.batch=$('#fBa').value}
+ const cs=new Map();PLAN.forEach(([c,y,m])=>cs.set(c+'|'+y,{c,y,m}));
+ [...ROWS,...CUM].forEach(r=>{const k=r.campus+'|'+r.yr;if(!cs.has(k))cs.set(k,{c:r.campus,y:r.yr,m:0})});
+ const co=[...cs.values()],cams=[...new Set(co.map(x=>x.c))].sort();
+ fill('#fEx',[['all','All exams'],...[...new Set([...ROWS,...CUM].map(r=>r.ex))].sort().map(e=>[e,exL(e)])],F.exam);
+ fill('#fCa',[['all','All campuses'],...cams.map(c=>[c,c])],F.campus);F.campus=$('#fCa').value;
+ const bl=co.filter(x=>F.campus==='all'||x.c===F.campus).sort((a,b)=>a.c.localeCompare(b.c)||String(a.y).localeCompare(String(b.y)));
+ fill('#fBa',[['all','All batches'],...bl.map(x=>[x.c+'|'+x.y,(F.campus==='all'?x.c+' · ':'')+x.y+' batch'])],F.batch);F.batch=$('#fBa').value;
+ const mx=Math.max(0,...bl.filter(x=>F.batch==='all'||x.c+'|'+x.y===F.batch).map(x=>x.m),...[...ROWS,...CUM].filter(r=>(F.campus==='all'||r.campus===F.campus)&&(F.batch==='all'||r.campus+'|'+r.yr===F.batch)).map(r=>r.n||0));
+ fill('#fSm',[['all','All semesters'],...Array.from({length:mx},(_,i)=>[String(i+1),'Semester '+(i+1)])],F.sem);
+ F.exam=$('#fEx').value;F.sem=$('#fSm').value}
 const stat=(t,u)=>u===0?['bad','Not uploaded']:u===t?['ok','Complete']:['wn','Partial'];
 const cnt=(a,k)=>a.filter(r=>r.st===k).length;
 function render(){
- const sel=r=>(F.campus==='all'||r.campus===F.campus)&&(F.batch==='all'||r.bid===F.batch);
- const rows=ROWS.filter(r=>(F.exam==='all'||r.ex===F.exam)&&sel(r)),base=ROWS.filter(sel);
+ const selB=r=>(F.campus==='all'||r.campus===F.campus)&&(F.batch==='all'||r.campus+'|'+r.yr===F.batch);
+ const rows=ROWS.filter(r=>(F.exam==='all'||r.ex===F.exam)&&selB(r)&&(F.sem==='all'||String(r.n)===F.sem)),base=[...ROWS.filter(selB),...CUM.filter(selB)];
  $('#meta').textContent='Updated '+new Date(UPD).toLocaleString()+' · '+ROWS.length+' subject-wise and '+CUM.length+' cumulative entries';
  const tot=rows.length,sc=cnt(rows,'scored'),ab=cnt(rows,'absent'),stu=grp(rows,r=>r.id),avgAll=mean(rows.filter(r=>r.st==='scored').map(r=>r.pct));
  const K=(v,l,s)=>`<div class="k"><b>${v}</b><span>${l}</span>${s?`<small>${s}</small>`:''}</div>`;
  $('#kpis').innerHTML=K(new Set(base.map(r=>r.id)).size,'Total students',F.exam==='all'?'':stu.size+' appeared in this exam')+K(tot?((sc+ab)/tot*100).toFixed(0)+'%':'–','Marks uploaded',(sc+ab)+' of '+tot+' entries')+K(pc(avgAll),'Average score',sc+' scored entries');
  const allx=[...ROWS,...CUM].map(r=>r.ex),mn=Math.max(3,...allx.map(e=>+((e.match(/^midterm_(\d+)$/)||[])[1]||0))),mt=[];
  for(let i=1;i<=mn;i++)mt.push('midterm_'+i);
- const gS=grp(ROWS,r=>r.sk+'|'+r.ex),gC=grp(CUM,r=>r.sk+'|'+r.ex),skBid=new Map(ROWS.map(r=>[r.sk,r.bid]));
+ const gS=grp(ROWS,r=>r.sk+'|'+r.ex),gC=grp(CUM,r=>r.sk+'|'+r.ex);
  const av=e=>{if(!e||!e.length)return['bad','Not available',''];const t=e.length,u=cnt(e,'scored')+cnt(e,'absent'),sj=[...grp(e,r=>r.cid)],sd=sj.filter(([i,x])=>cnt(x,'scored')+cnt(x,'absent')===x.length).length;return[u===t?'ok':u?'wn':'bad',u===t?'Available':u?'Partial':'Not available',sd+'/'+sj.length+' subjects']};
  const avC=e=>{if(!e||!e.length)return['bad','Not available',''];const t=e.length,u=cnt(e,'scored');return[u===t?'ok':u?'wn':'bad',u===t?'Available':u?'Partial':'Not available',u+'/'+t+' students']};
- const sb=ROWS.find(r=>r.bid===F.batch),bs=[];
- PLAN.forEach(([c,y,m])=>{if((F.campus!=='all'&&F.campus!==c)||(sb&&!(sb.campus===c&&String(sb.yr)===String(y))))return;for(let n=1;n<=m;n++)bs.push({campus:c,yr:y,n,sk:c+'|'+y+'|S'+n,mid:n===m})});
+ const bs=[];
+ PLAN.forEach(([c,y,m])=>{if((F.campus!=='all'&&F.campus!==c)||(F.batch!=='all'&&F.batch!==c+'|'+y))return;for(let n=1;n<=m;n++)bs.push({campus:c,yr:y,n,sk:c+'|'+y+'|S'+n,mid:n===m})});
  const bl='border-left:1px solid var(--bd)',dash=`<td style="${bl};color:var(--mu)">–</td><td style="color:var(--mu)">–</td>`;
  const T=(id,tc,list)=>{
-  $(id).innerHTML=list.length?'<table><tr><th rowspan="2">Campus</th><th rowspan="2">Batch</th><th rowspan="2">Semester</th>'+tc.map(c=>`<th colspan="2" style="text-align:center;${bl}">${esc(exL(c))}</th>`).join('')+'</tr><tr>'+tc.map(()=>`<th style="${bl}">Subject-wise</th><th>Cumulative</th>`).join('')+'</tr>'+list.map(b=>'<tr><td>'+esc(b.campus)+'</td><td>'+b.yr+'</td><td>'+b.n+'</td>'+tc.map(c=>{if(!(c==='endterm'||b.mid))return dash;const x=av(gS.get(b.sk+'|'+c)),m=CUM.length?avC(gC.get(b.sk+'|'+c)):['bad','Not available','file not loaded'],bid=skBid.get(b.sk);return`<td ${bid?`class="clk" data-b="${esc(bid)}" data-e="${esc(c)}"`:''} style="${bl}"><span class="chip ${x[0]}">${x[1]}</span><div class="sub">${x[2]}</div></td><td><span class="chip ${m[0]}">${m[1]}</span><div class="sub">${m[2]}</div></td>`}).join('')+'</tr>').join('')+'</table>':'<p class="note">Nothing to show for this filter.</p>';
-  document.querySelectorAll(id+' td.clk').forEach(t=>t.onclick=()=>{F.exam=t.dataset.e;F.campus='all';F.batch=t.dataset.b;opts();render();scrollTo({top:0,behavior:'smooth'})})};
- T('#tracker',['endterm',...mt],bs);T('#trkEnd',['endterm'],bs);T('#trkMid',mt,bs.filter(b=>b.mid));
+  $(id).innerHTML=list.length?'<table><tr><th rowspan="2">Campus</th><th rowspan="2">Batch</th><th rowspan="2">Semester</th>'+tc.map(c=>`<th colspan="2" style="text-align:center;${bl}">${esc(exL(c))}</th>`).join('')+'</tr><tr>'+tc.map(()=>`<th style="${bl}">Subject-wise</th><th>Cumulative</th>`).join('')+'</tr>'+list.map(b=>'<tr><td>'+esc(b.campus)+'</td><td>'+b.yr+'</td><td>'+b.n+'</td>'+tc.map(c=>{if(!(c==='endterm'||b.mid))return dash;const x=av(gS.get(b.sk+'|'+c)),m=CUM.length?avC(gC.get(b.sk+'|'+c)):['bad','Not available','file not loaded'],has=gS.has(b.sk+'|'+c);return`<td ${has?`class="clk" data-c="${esc(b.campus)}" data-y="${b.yr}" data-n="${b.n}" data-e="${esc(c)}"`:''} style="${bl}"><span class="chip ${x[0]}">${x[1]}</span><div class="sub">${x[2]}</div></td><td><span class="chip ${m[0]}">${m[1]}</span><div class="sub">${m[2]}</div></td>`}).join('')+'</tr>').join('')+'</table>':'<p class="note">Nothing to show for this filter.</p>';
+  document.querySelectorAll(id+' td.clk').forEach(t=>t.onclick=()=>{F.exam=t.dataset.e;F.campus=t.dataset.c;F.batch=t.dataset.c+'|'+t.dataset.y;F.sem=t.dataset.n;opts();render();scrollTo({top:0,behavior:'smooth'})})};
+ T('#trkEnd',['endterm'],bs);T('#trkMid',mt,bs.filter(b=>b.mid));
  const sa=[...stu].map(([id,a])=>{const q=a.filter(r=>r.st==='scored');return{id,name:a[0].name,bl:a[0].bl,n:q.length,t:a.length,avg:mean(q.map(r=>r.pct))}}).filter(q=>q.n>=Math.min(2,q.t)&&q.avg!=null);
  const ps=[...sa].sort((x,y)=>tab==='top'?y.avg-x.avg||y.n-x.n:x.avg-y.avg||x.n-y.n).slice(0,10);
  $('#perf').innerHTML='<table><tr><th>#</th><th>Student</th><th>Batch</th><th class="n">Avg</th><th class="n">Subjects</th></tr>'+ps.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td><td class="n" style="color:${col(q.avg)};font-weight:600">${pc(q.avg)}</td><td class="n">${q.n}/${q.t}</td></tr>`).join('')+'</table>';
- // Student-wise semester funnel: avg % per semester for each student
- const semN=r=>+((r.sm.match(/\d+/)||[0])[0]),fm=new Map();
- rows.forEach(r=>{if(r.st!=='scored'||r.pct==null)return;const n=semN(r);if(!n)return;let s=fm.get(r.id);if(!s){s={id:r.id,name:r.name,bl:r.campus+' · '+r.yr+' batch',sem:{}};fm.set(r.id,s)}(s.sem[n]=s.sem[n]||[]).push(r.pct)});
- const fl=[...fm.values()].map(s=>{const sv={};let all=[];Object.keys(s.sem).forEach(k=>{sv[k]=mean(s.sem[k]);all=all.concat(s.sem[k])});return{name:s.name,bl:s.bl,sv,avg:mean(all)}}).sort((a,b)=>b.avg-a.avg);
+ // Student-wise semester funnel (from the cumulative sheet)
+ const rk=e=>e==='endterm'?1e6:+((e.match(/\d+/)||[0])[0]),nv=v=>v,fv=v=>pc(v),fm=new Map();
+ CUM.filter(r=>r.v!=null&&r.n&&selB(r)&&(F.exam==='all'||r.ex===F.exam)).forEach(r=>{let q=fm.get(r.id);if(!q){q={name:r.name,bl:r.campus+' · '+r.yr+' batch',campus:r.campus,sem:{}};fm.set(r.id,q)}const o=q.sem[r.n];if(!o||rk(r.ex)>rk(o.ex))q.sem[r.n]={v:r.v,ex:r.ex}});
+ const fl=[...fm.values()].map(q=>{const sv={};Object.keys(q.sem).forEach(k=>sv[k]=q.sem[k].v);return{name:q.name,bl:q.bl,campus:q.campus,sv,avg:mean(Object.values(sv).map(nv))}}).filter(q=>q.avg!=null).sort((x,y)=>y.avg-x.avg);
  const topOnly=F.campus==='all'&&F.batch==='all',shown=topOnly?fl.slice(0,10):fl;
- const maxS=Math.max(1,...fl.flatMap(s=>Object.keys(s.sv).map(Number))),sems=[];for(let i=1;i<=maxS;i++)sems.push(i);
+ const maxS=Math.max(1,...fl.flatMap(q=>Object.keys(q.sv).map(Number))),sems=[];for(let i=1;i<=maxS;i++)sems.push(i);
+ const pre=fl.length&&fl.every(q=>q.campus==='SAGESELECT')?'Trimester ':'Sem ';
  $('#funnel').className='w'+(topOnly?'':' fun');
- $('#funnel').innerHTML=shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">Sem ${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td>${esc(s.bl)}</td>`+sems.map(n=>{const v=s.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};min-width:84px"><div style="color:${col(v)};font-weight:600">${pc(v)}</div><div class="bar" style="min-width:60px"><i style="width:${Math.min(100,Math.max(0,v))}%;background:${col(v)}"></i></div></td>`}).join('')+`<td class="n" style="${bl};color:${col(s.avg)};font-weight:700">${pc(s.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No scored marks for this filter.</p>';
- $('#funNote').textContent=(topOnly?'Showing top 10 students by overall average (select a campus or batch to see everyone). ':'Showing all '+fl.length+' students in this selection, sorted by overall average. ')+'Each cell is the average % of scored subjects in that semester and follows the exam filter. A dash means no scored marks.'}
-['fEx','fCa','fBa'].forEach(id=>$('#'+id).onchange=()=>{F.exam=$('#fEx').value;F.campus=$('#fCa').value;F.batch=id==='fCa'?'all':$('#fBa').value;opts();render()});
+ $('#funnel').innerHTML=!CUM.length?'<p class="note">Cumulative data not loaded.</p>':shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">${pre}${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(nv(v))};font-weight:600">${fv(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No cumulative marks for this filter.</p>';
+ $('#funNote').textContent=(topOnly?'Top 10 by overall average. Select a campus or batch to see everyone. ':fl.length+' students, sorted by overall average. ')+'% = obtained ÷ max marks (cumulative sheet). A dash means no marks for that semester.'}
+['fEx','fCa','fBa','fSm'].forEach(id=>$('#'+id).onchange=()=>{F.exam=$('#fEx').value;F.campus=$('#fCa').value;F.batch=id==='fCa'?'all':$('#fBa').value;F.sem=id==='fCa'||id==='fBa'?'all':$('#fSm').value;opts();render()});
 [['tTop','top'],['tLow','low']].forEach(([id,v])=>$('#'+id).onclick=()=>{tab=v;$('#tTop').className=v==='top'?'on':'';$('#tLow').className=v==='low'?'on':'';render()});
 // ===== Loader =====
 let LT=null,LP=0;
@@ -138,7 +143,7 @@ async function loadData(fresh){
   PLAN=j.user.role==='admin'?PLAN_ALL:PLAN_ALL.filter(p=>j.user.campuses.includes(p[0].toUpperCase()));
   $('#login').hidden=true;$('#app').hidden=false;$('#err').textContent='';
   $('#who').textContent=j.user.email+' · '+(j.user.role==='admin'?'Admin':'Viewer: '+j.user.campuses.join(', '));
-  F={exam:'all',campus:'all',batch:'all'};opts();render();ok=true;
+  F={exam:'all',campus:'all',batch:'all',sem:'all'};opts();render();ok=true;
  }catch(e){showLogin('Could not reach the server. Check API_URL and your internet, then try again.')}
  finally{lend(ok);$('#rf').disabled=false}}
 $('#sb').onclick=()=>{CRED={email:$('#em').value.trim(),password:$('#pw').value};sessionStorage.setItem('cr',JSON.stringify(CRED));loadData()};
