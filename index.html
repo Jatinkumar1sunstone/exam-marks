@@ -34,7 +34,15 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 .hist{display:flex;gap:8px;align-items:flex-end;height:130px}.hist div{flex:1;text-align:center;font-size:12px;color:var(--mu)}
 .hist i{display:block;background:var(--ac);border-radius:4px 4px 0 0;margin-bottom:4px}
 .mx{cursor:pointer}.mx:hover{background:var(--bg)}.msg{color:var(--bad);font-size:13px}.note{color:var(--mu);font-size:12.5px;margin:8px 0 0}
-</style></head><body><div id="login" hidden style="max-width:420px;margin:15vh auto;text-align:center;padding:16px"><h1>Exam marks dashboard</h1><p class="sub">Sign in with your work email and the shared password.</p><input id="em" type="email" placeholder="Work email" autocomplete="username" style="width:100%;margin-bottom:8px"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:8px"><button class="pri" id="sb" style="width:100%">Sign in</button><p class="msg" id="lmsg"></p></div>
+#ld{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;text-align:center}
+#ld .lt{font-size:18px;font-weight:600}
+#ld .lb{width:min(360px,80vw);height:10px;background:var(--bd);border-radius:6px;overflow:hidden}
+#ld .lb i{display:block;height:100%;width:0;background:var(--ac);border-radius:6px;transition:width .15s linear}
+#ld .lp{color:var(--mu);font-size:13px}
+.fun{max-height:520px;overflow:auto}
+</style></head><body>
+<div id="ld" hidden role="status" aria-live="polite"><div class="lt" id="ltx">Data loading…</div><div class="lb"><i id="lbar"></i></div><div class="lp" id="lpc">0%</div></div>
+<div id="login" hidden style="max-width:420px;margin:15vh auto;text-align:center;padding:16px"><h1>Exam marks dashboard</h1><p class="sub">Sign in with your work email and the shared password.</p><input id="em" type="email" placeholder="Work email" autocomplete="username" style="width:100%;margin-bottom:8px"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" style="width:100%;margin-bottom:8px"><button class="pri" id="sb" style="width:100%">Sign in</button><p class="msg" id="lmsg"></p></div>
 <main id="app" hidden>
 <div class="top"><div><h1>Exam marks dashboard</h1><div class="sub" id="meta"></div></div>
 <div style="text-align:right"><div class="sub" id="who"></div><div style="margin-top:4px"><button id="rf">Refresh data</button> <button id="so">Sign out</button></div></div></div>
@@ -45,7 +53,7 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 <section><h2>End term marks</h2><div class="w" id="trkEnd"></div></section>
 <section><h2>Mid term marks</h2><div class="w" id="trkMid"></div></section>
 <section><h2>Top performers</h2><div style="margin-bottom:8px"><button id="tTop" class="on">Top 10</button> <button id="tLow">Needs attention</button></div><div class="w" id="perf"></div><p class="note">Average % across a student’s scored subjects (absent and pending are left out). At least 2 scored subjects needed.</p></section>
-<section id="acc" hidden><h2>Access (admins only)</h2><div class="w" id="accT"></div><p class="note">Change access in the Apps Script (ADMINS, CAMPUS_ACCESS) or in the Access tab of the sheet. See README.</p></section>
+<section><h2>Student-wise semester funnel</h2><div class="w" id="funnel"></div><p class="note" id="funNote"></p></section>
 </main>
 <script>
 let CUM=[],ROWS=[],F={exam:'all',campus:'all',batch:'all'},tab='top',fname='mid_sem_-_Sheet4.csv';
@@ -102,28 +110,40 @@ function render(){
  T('#tracker',['endterm',...mt],bs);T('#trkEnd',['endterm'],bs);T('#trkMid',mt,bs.filter(b=>b.mid));
  const sa=[...stu].map(([id,a])=>{const q=a.filter(r=>r.st==='scored');return{id,name:a[0].name,bl:a[0].bl,n:q.length,t:a.length,avg:mean(q.map(r=>r.pct))}}).filter(q=>q.n>=Math.min(2,q.t)&&q.avg!=null);
  const ps=[...sa].sort((x,y)=>tab==='top'?y.avg-x.avg||y.n-x.n:x.avg-y.avg||x.n-y.n).slice(0,10);
- $('#perf').innerHTML='<table><tr><th>#</th><th>Student</th><th>Batch</th><th class="n">Avg</th><th class="n">Subjects</th></tr>'+ps.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td><td class="n" style="color:${col(q.avg)};font-weight:600">${pc(q.avg)}</td><td class="n">${q.n}/${q.t}</td></tr>`).join('')+'</table>'}
+ $('#perf').innerHTML='<table><tr><th>#</th><th>Student</th><th>Batch</th><th class="n">Avg</th><th class="n">Subjects</th></tr>'+ps.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td><td class="n" style="color:${col(q.avg)};font-weight:600">${pc(q.avg)}</td><td class="n">${q.n}/${q.t}</td></tr>`).join('')+'</table>';
+ // Student-wise semester funnel: avg % per semester for each student
+ const semN=r=>+((r.sm.match(/\d+/)||[0])[0]),fm=new Map();
+ rows.forEach(r=>{if(r.st!=='scored'||r.pct==null)return;const n=semN(r);if(!n)return;let s=fm.get(r.id);if(!s){s={id:r.id,name:r.name,bl:r.campus+' · '+r.yr+' batch',sem:{}};fm.set(r.id,s)}(s.sem[n]=s.sem[n]||[]).push(r.pct)});
+ const fl=[...fm.values()].map(s=>{const sv={};let all=[];Object.keys(s.sem).forEach(k=>{sv[k]=mean(s.sem[k]);all=all.concat(s.sem[k])});return{name:s.name,bl:s.bl,sv,avg:mean(all)}}).sort((a,b)=>b.avg-a.avg);
+ const topOnly=F.campus==='all'&&F.batch==='all',shown=topOnly?fl.slice(0,10):fl;
+ const maxS=Math.max(1,...fl.flatMap(s=>Object.keys(s.sv).map(Number))),sems=[];for(let i=1;i<=maxS;i++)sems.push(i);
+ $('#funnel').className='w'+(topOnly?'':' fun');
+ $('#funnel').innerHTML=shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">Sem ${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((s,i)=>`<tr><td>${i+1}</td><td>${esc(s.name)}</td><td>${esc(s.bl)}</td>`+sems.map(n=>{const v=s.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};min-width:84px"><div style="color:${col(v)};font-weight:600">${pc(v)}</div><div class="bar" style="min-width:60px"><i style="width:${Math.min(100,Math.max(0,v))}%;background:${col(v)}"></i></div></td>`}).join('')+`<td class="n" style="${bl};color:${col(s.avg)};font-weight:700">${pc(s.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No scored marks for this filter.</p>';
+ $('#funNote').textContent=(topOnly?'Showing top 10 students by overall average (select a campus or batch to see everyone). ':'Showing all '+fl.length+' students in this selection, sorted by overall average. ')+'Each cell is the average % of scored subjects in that semester and follows the exam filter. A dash means no scored marks.'}
 ['fEx','fCa','fBa'].forEach(id=>$('#'+id).onchange=()=>{F.exam=$('#fEx').value;F.campus=$('#fCa').value;F.batch=id==='fCa'?'all':$('#fBa').value;opts();render()});
 [['tTop','top'],['tLow','low']].forEach(([id,v])=>$('#'+id).onclick=()=>{tab=v;$('#tTop').className=v==='top'?'on':'';$('#tLow').className=v==='low'?'on':'';render()});
+// ===== Loader =====
+let LT=null,LP=0;
+const LM=p=>p>=100?"Here's your data":p>=90?'Just one second…':p>=75?'Almost loaded…':p>=50?'About to load…':'Data loading…';
+function lset(p){LP=p;const w=Math.floor(p);$('#lbar').style.width=p+'%';$('#lpc').textContent=w+'%';$('#ltx').textContent=LM(w)}
+function lstart(){clearInterval(LT);$('#ld').hidden=false;lset(0);LT=setInterval(()=>lset(Math.min(99,LP+(LP<50?1.5:LP<75?.6:LP<90?.3:.05))),100)}
+function lend(ok){clearInterval(LT);if(!ok){$('#ld').hidden=true;return}lset(100);setTimeout(()=>{$('#ld').hidden=true},700)}
 function showLogin(m){$('#app').hidden=true;$('#login').hidden=false;$('#lmsg').textContent=m||'';$('#sb').disabled=false}
-async function loadData(){
- $('#lmsg').textContent='';$('#sb').disabled=true;$('#rf').disabled=true;
+async function loadData(fresh){
+ $('#lmsg').textContent='';$('#sb').disabled=true;$('#rf').disabled=true;lstart();let ok=false;
  try{
-  const r=await fetch(API_URL,{method:'POST',body:JSON.stringify(CRED)}),j=await r.json();
+  const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({...CRED,refresh:!!fresh})}),j=await r.json();
   if(j.error){CRED=null;sessionStorage.removeItem('cr');showLogin(j.error);return}
   ROWS=normSub(j.subject);CUM=normCum(j.cumulative);UPD=j.updated;
   PLAN=j.user.role==='admin'?PLAN_ALL:PLAN_ALL.filter(p=>j.user.campuses.includes(p[0].toUpperCase()));
-  
   $('#login').hidden=true;$('#app').hidden=false;$('#err').textContent='';
   $('#who').textContent=j.user.email+' · '+(j.user.role==='admin'?'Admin':'Viewer: '+j.user.campuses.join(', '));
-  const A=j.access;$('#acc').hidden=!A;
-  if(A)$('#accT').innerHTML='<table><tr><th>Email</th><th>Access</th></tr>'+A.admins.sort().map(e=>`<tr><td>${esc(e)}</td><td><span class="chip ok">Admin · all campuses</span></td></tr>`).join('')+Object.entries(A.viewers).sort().map(([e,c])=>`<tr><td>${esc(e)}</td><td>Viewer · ${esc(c.join(', '))}</td></tr>`).join('')+'</table>';
-  F={exam:'all',campus:'all',batch:'all'};opts();render();
+  F={exam:'all',campus:'all',batch:'all'};opts();render();ok=true;
  }catch(e){showLogin('Could not reach the server. Check API_URL and your internet, then try again.')}
- $('#rf').disabled=false}
+ finally{lend(ok);$('#rf').disabled=false}}
 $('#sb').onclick=()=>{CRED={email:$('#em').value.trim(),password:$('#pw').value};sessionStorage.setItem('cr',JSON.stringify(CRED));loadData()};
 $('#pw').onkeydown=e=>{if(e.key==='Enter')$('#sb').click()};
-$('#rf').onclick=loadData;
+$('#rf').onclick=()=>loadData(true);
 $('#so').onclick=()=>{CRED=null;sessionStorage.removeItem('cr');$('#pw').value='';showLogin()};
 if(CRED&&CRED.email)loadData();else showLogin();
 </script></body></html>
