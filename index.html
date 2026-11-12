@@ -50,6 +50,7 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 <div class="bar-f"><select id="fEx" aria-label="Exam"></select><select id="fCa" aria-label="Campus"></select><select id="fBa" aria-label="Batch"></select><select id="fSm" aria-label="Semester"></select></div>
 <div class="kpis" id="kpis"></div>
 <section><h2>Student performance by semester</h2><div class="w" id="funnel"></div><p class="note" id="funNote"></p></section>
+<section><h2 id="distT">Score distribution</h2><div id="dist"></div><p class="note" id="distN"></p></section>
 <section><h2>End term marks status</h2><div class="w" id="trkEnd"></div><p class="note">Tap a Subject-wise cell to filter the dashboard to that batch and exam.</p></section>
 <section><h2>Mid term marks status</h2><div class="w" id="trkMid"></div></section>
 <section><h2>Top performers</h2><div style="margin-bottom:8px"><button id="tTop" class="on">Top 10</button> <button id="tLow">Needs attention</button></div><div class="w" id="perf"></div></section>
@@ -124,7 +125,27 @@ function render(){
  const pre=fl.length&&fl.every(q=>q.campus==='SAGESELECT')?'Trimester ':'Sem ';
  $('#funnel').className='w'+(topOnly?'':' fun');
  $('#funnel').innerHTML=!CUM.length?'<p class="note">Cumulative data not loaded.</p>':shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">${pre}${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(nv(v))};font-weight:600">${fv(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No cumulative marks for this filter.</p>';
- $('#funNote').textContent=(topOnly?'Top 10 by overall average. Select a campus or batch to see everyone. ':fl.length+' students, sorted by overall average. ')+'% = obtained ÷ max marks (cumulative sheet). A dash means no marks for that semester.'}
+ $('#funNote').textContent=(topOnly?'Top 10 by overall average. Select a campus or batch to see everyone. ':fl.length+' students, sorted by overall average. ')+'% = obtained ÷ max marks (cumulative sheet). A dash means no marks for that semester.';
+ dist(fl,sems,pre)}
+// ===== Score distribution (bands) =====
+const BN=[['Below 50%','var(--bad)'],['50–75%','var(--wn)'],['75–90%','var(--ac)'],['90–100%','var(--ok)']];
+const bi=v=>v<50?0:v<75?1:v<90?2:3;
+const cnts=a=>{const c=[0,0,0,0];a.forEach(v=>c[bi(v)]++);return c};
+const sbar=(c,t)=>'<div class="bar" style="display:flex;min-width:180px;height:12px">'+c.map((x,i)=>x?`<i style="width:${x/t*100}%;background:${BN[i][1]}" title="${BN[i][0]}: ${x}"></i>`:'').join('')+'</div>';
+const bandRow=(label,c)=>{const t=c.reduce((a,b)=>a+b,0);return`<tr><td>${esc(label)}</td><td class="n"><b>${t}</b></td>`+c.map(x=>`<td class="n">${x}${t?` <span class="sub">(${(x/t*100).toFixed(0)}%)</span>`:''}</td>`).join('')+`<td>${t?sbar(c,t):''}</td></tr>`};
+const bandHead=first=>`<tr><th>${first}</th><th class="n">Students</th>`+BN.map(b=>`<th class="n" style="color:${b[1]}">${b[0]}</th>`).join('')+'<th>Split</th></tr>';
+function dist(fl,sems,pre){
+ const D=$('#dist');
+ if(!CUM.length||!fl.length){D.innerHTML='<p class="note">No cumulative marks for this filter.</p>';$('#distN').textContent='';return}
+ const T=fl.length,all=cnts(fl.map(q=>q.avg));
+ const who=F.batch!=='all'?F.batch.replace('|',' · ')+' batch':F.campus!=='all'?F.campus:'All campuses';
+ $('#distT').textContent='Score distribution · '+who;
+ let h='<h3 style="font-size:14px;margin:0 0 6px">Overall (student level)</h3>'+BN.map((b,i)=>`<div style="display:flex;align-items:center;gap:10px;margin:6px 0"><div style="width:90px">${b[0]}</div><div class="bar" style="flex:1;height:18px"><i style="width:${all[i]/T*100}%;background:${b[1]}"></i></div><div style="width:120px;text-align:right"><b>${all[i]}</b> (${(all[i]/T*100).toFixed(0)}%)</div></div>`).join('');
+ h+='<h3 style="font-size:14px;margin:18px 0 6px">Semester-wise</h3><div class="w"><table>'+bandHead('Semester')+sems.map(n=>bandRow(pre+n,cnts(fl.map(q=>q.sv[n]).filter(v=>v!=null)))).join('')+'</table></div>';
+ const g=[...grp(fl,q=>q.bl)].sort((a,b)=>a[0].localeCompare(b[0]));
+ if(g.length>1)h+='<h3 style="font-size:14px;margin:18px 0 6px">Campus × batch</h3><div class="w"><table>'+bandHead('Campus · Batch')+g.map(([k,a])=>bandRow(k,cnts(a.map(q=>q.avg)))).join('')+'</table></div>';
+ D.innerHTML=h;
+ $('#distN').textContent='Student ka overall % = uske semesters ke % ka average. Semester-wise me us semester ke marks wale students hi ginte hain.'}
 ['fEx','fCa','fBa','fSm'].forEach(id=>$('#'+id).onchange=()=>{F.exam=$('#fEx').value;F.campus=$('#fCa').value;F.batch=id==='fCa'?'all':$('#fBa').value;F.sem=id==='fCa'||id==='fBa'?'all':$('#fSm').value;opts();render()});
 [['tTop','top'],['tLow','low']].forEach(([id,v])=>$('#'+id).onclick=()=>{tab=v;$('#tTop').className=v==='top'?'on':'';$('#tLow').className=v==='low'?'on':'';render()});
 // ===== Loader =====
