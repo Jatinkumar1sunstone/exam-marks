@@ -34,11 +34,11 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 .hist{display:flex;gap:8px;align-items:flex-end;height:130px}.hist div{flex:1;text-align:center;font-size:12px;color:var(--mu)}
 .hist i{display:block;background:var(--ac);border-radius:4px 4px 0 0;margin-bottom:4px}
 .mx{cursor:pointer}.mx:hover{background:var(--bg)}.msg{color:var(--bad);font-size:13px}.note{color:var(--mu);font-size:12.5px;margin:8px 0 0}
-#ld{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px;text-align:center}
-#ld .lt{font-size:18px;font-weight:600}
-#ld .lb{width:min(360px,80vw);height:10px;background:var(--bd);border-radius:6px;overflow:hidden}
-#ld .lb i{display:block;height:100%;width:0;background:var(--ac);border-radius:6px;transition:width .15s linear}
-#ld .lp{color:var(--mu);font-size:13px}
+#ld{position:fixed;top:0;left:0;right:0;z-index:50;pointer-events:none}
+#ld .lt{position:fixed;top:8px;right:14px;font-size:12px;color:var(--mu)}
+#ld .lb{width:100%;height:3px;overflow:hidden}
+#ld .lb i{display:block;height:100%;width:0;background:var(--ac);transition:width .15s linear}
+#ld .lp{display:none}
 .fun{max-height:520px;overflow:auto}
 .sh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}.sh h2{margin:0}
 .bd{cursor:pointer}.bd:hover{background:var(--bg)}.bd.sel{outline:2px solid var(--ac);outline-offset:-2px;font-weight:700}
@@ -52,6 +52,7 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 <div class="bar-f"><select id="fEx" aria-label="Exam"></select><select id="fCa" aria-label="Campus"></select><select id="fBa" aria-label="Batch"></select><select id="fSm" aria-label="Semester"></select></div>
 <div class="kpis" id="kpis"></div>
 <section><div class="sh"><h2>Student performance by semester</h2><button data-dl="funnel">⬇ CSV</button></div><div class="w" id="funnel"></div><p class="note" id="funNote"></p></section>
+<section><div class="sh"><h2>Pass / Fail by semester</h2><button data-dl="pf">⬇ CSV</button></div><div style="margin-bottom:10px"><button id="pfA" class="on">All students</button> <button id="pfF">Only fail</button></div><div id="pf"></div><p class="note">Pass = 35% ya usse zyada, Fail = 35% se kam. Overall = cumulative overall % ke hisaab se. "Failed sems" = kitne semesters me 35% se kam aaye.</p></section>
 <section><div class="sh"><h2 id="distT">Score distribution</h2><button data-dl="dist">⬇ CSV</button></div><div id="dist"></div><div id="distL" style="margin-top:16px"></div><p class="note" id="distN"></p></section>
 <section><div class="sh"><h2 id="tierT">Top 10% · Next 50% · Last 40%</h2><button id="tierCsv">⬇ CSV</button></div><div id="tier"></div><div id="tierL" style="margin-top:16px"></div><p class="note" id="tierN"></p></section>
 <section><div class="sh"><h2>End term marks status</h2><button data-dl="tbl:#trkEnd">⬇ CSV</button></div><div class="w" id="trkEnd"></div><p class="note">Tap a Subject-wise cell to filter the dashboard to that batch and exam.</p></section>
@@ -132,7 +133,7 @@ function render(){
  $('#funnel').className='w'+(topOnly?'':' fun');
  $('#funnel').innerHTML=!CUM.length?'<p class="note">Cumulative data not loaded.</p>':shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">${pre}${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(nv(v))};font-weight:600">${fv(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No cumulative marks for this filter.'+(CUM.filter(selB).length?' (Is exam ke liye cumulative marks nahi mile.)':' Cumulative sheet se is campus/batch ke 0 rows aaye ('+CUM.length+' rows loaded). Refresh data dabao.'+(DG?' Cumulative tab "'+DG.cumTab+'" me campus: '+Object.entries(DG.cumCampuses).map(e=>e.join(' ')).join(', ')+'.':' Apps Script ka cumulative read check karo.'))+'</p>';
  $('#funNote').textContent=(topOnly?'Top 10 by overall average. Select a campus or batch to see everyone. ':fl.length+' students, sorted by overall average. ')+'% = obtained ÷ max marks (cumulative sheet). A dash means no marks for that semester.';
- dist(fl,sems,pre);tier(fl,sems,pre)}
+ dist(fl,sems,pre);tier(fl,sems,pre);pfr(fl,sems,pre)}
 // ===== Score distribution (bands) =====
 let DSEL=null,DCTX=null;
 const BN=[['Below 50%','var(--bad)'],['50–75%','var(--wn)'],['75–90%','var(--ac)'],['90–100%','var(--ok)']];
@@ -168,8 +169,9 @@ function dist(fl,sems,pre){
  distList(fl,sems,pre)}
 $('#dist').onclick=e=>{const t=e.target.closest('[data-b]');if(!t||!DCTX)return;const n={s:t.dataset.s,k:t.dataset.k,b:+t.dataset.b};DSEL=isSel(n.s,n.k,n.b)?null:n;dist(...DCTX);if(DSEL)$('#distL').scrollIntoView({behavior:'smooth',block:'nearest'})};
 // ===== CSV download =====
+function msg(t){const e=$('#err');e.textContent=t;setTimeout(()=>{if(e.textContent===t)e.textContent=''},4000)}
 function csv(name,rows){
- if(!rows||rows.length<2){alert('Is section me download karne ke liye data nahi hai.');return}
+ if(!rows||rows.length<2){msg('Is section me download karne ke liye data nahi hai.');return}
  const q=v=>{v=v==null?'':String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
  const blob=new Blob(['\ufeff'+rows.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
@@ -188,8 +190,9 @@ function tbl2rows(t){
 document.addEventListener('click',e=>{
  const b=e.target.closest('[data-dl]');if(!b)return;const k=b.dataset.dl,w=fwho();
  if(k.startsWith('tbl:')){csv(k.slice(4).replace('#','')+'_'+w,tbl2rows($(k.slice(4)+' table')));return}
- if(!DCTX||!CUM.length){alert('Cumulative data load nahi hua hai.');return}
+ if(!DCTX||!CUM.length){msg('Cumulative data load nahi hua hai.');return}
  const [fl,sems,pre]=DCTX;
+ if(k==='pf'){const R=v=>v==null?'':v>=PASS?'Pass':'Fail';csv('pass_fail_'+w,[['Student','Batch',...sems.flatMap(n=>[pre+n+' %',pre+n+' result']),'Overall %','Overall result','Failed sems'],...fl.map(q=>[q.name,q.bl,...sems.flatMap(n=>[q.sv[n]==null?'':q.sv[n].toFixed(1),R(q.sv[n])]),q.avg.toFixed(1),R(q.avg),sems.filter(n=>q.sv[n]!=null&&q.sv[n]<PASS).length])])}
  if(k==='funnel')csv('students_by_semester_'+w,[['Student','Batch',...sems.map(n=>pre+n+' %'),'Overall %'],...fl.map(q=>[q.name,q.bl,...sems.map(n=>q.sv[n]==null?'':q.sv[n].toFixed(1)),q.avg.toFixed(1)])]);
  if(k==='dist'){const r=(l,x,c)=>[l,x,c.reduce((a,b)=>a+b,0),...c];
   const o=[['Level','Label','Students',...BN.map(b=>b[0])],r('Overall','All students',cnts(fl.map(q=>q.avg)))];
@@ -223,8 +226,19 @@ function tierList(){
  $('#tierX').onclick=()=>{TSEL=null;tier(...TCTX)};
  $('#tierLCsv').onclick=()=>csv('tier_'+TN[TSEL.i][0]+'_'+g.l+'_'+fwho(),[['Rank','Student','Batch',...sems.map(n=>pre+n+' %'),'Overall %'],...a.map((q,i)=>[off+i+1,q.name,q.bl,...sems.map(n=>q.sv[n]==null?'':q.sv[n].toFixed(1)),q.avg.toFixed(1)])])}
 $('#tier').onclick=e=>{const t=e.target.closest('[data-tg]');if(!t||!TCTX)return;const n={l:t.dataset.tg,i:+t.dataset.ti};TSEL=TSEL&&TSEL.l===n.l&&TSEL.i===n.i?null:n;tier(...TCTX);if(TSEL)$('#tierL').scrollIntoView({behavior:'smooth',block:'nearest'})};
-$('#tierCsv').onclick=()=>{if(!TG.length){alert('Is section me download karne ke liye data nahi hai.');return}
+$('#tierCsv').onclick=()=>{if(!TG.length){msg('Is section me download karne ke liye data nahi hai.');return}
  csv('tier_summary_'+fwho(),[['Campus / Batch','Students',...TN.flatMap(x=>[x[0]+' count',x[0]+' % range'])],...TG.map(g=>[g.l,g.a.length,...g.t.flatMap(x=>[x.length,rng(x)])])])};
+// ===== Pass / Fail (35%) =====
+const PASS=35;let PFF='all';
+const pfc=v=>v==null?'<span style="color:var(--mu)">–</span>':`<span class="chip ${v>=PASS?'ok':'bad'}">${v>=PASS?'Pass':'Fail'}</span><div class="sub">${pc(v)}</div>`;
+function pfr(fl,sems,pre){
+ const D=$('#pf');
+ if(!CUM.length||!fl.length){D.innerHTML='<p class="note">No cumulative marks for this filter.</p>';return}
+ const bl='border-left:1px solid var(--bd)',rows=fl.map(q=>({q,f:sems.filter(n=>q.sv[n]!=null&&q.sv[n]<PASS).length,ov:q.avg>=PASS}));
+ const sh=rows.filter(r=>PFF==='all'||r.f>0||!r.ov).sort((x,y)=>y.f-x.f||x.q.avg-y.q.avg),op=rows.filter(r=>r.ov).length;
+ const ps=sems.map(n=>{const v=fl.map(q=>q.sv[n]).filter(x=>x!=null),p=v.filter(x=>x>=PASS).length;return pre+n+': <b>'+p+'</b> Pass / <b>'+(v.length-p)+'</b> Fail'}).join(' · ');
+ D.innerHTML=`<p class="sub" style="margin:0 0 10px">Overall: <b>${op}</b> Pass / <b>${rows.length-op}</b> Fail (${rows.length} students) · ${ps}</p><div class="w fun"><table><tr><th>#</th><th>Student</th><th>Batch</th>`+sems.map(n=>`<th style="${bl}">${pre}${n}</th>`).join('')+`<th style="${bl}">Overall</th><th class="n">Failed sems</th></tr>`+sh.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.q.name)}</td><td>${esc(r.q.bl)}</td>`+sems.map(n=>`<td style="${bl}">${pfc(r.q.sv[n])}</td>`).join('')+`<td style="${bl}">${pfc(r.q.avg)}</td><td class="n" style="${r.f?'color:var(--bad);font-weight:700':'color:var(--mu)'}">${r.f}</td></tr>`).join('')+'</table></div>'+(sh.length?'':'<p class="note">Koi student fail nahi hai.</p>')}
+[['pfA','all'],['pfF','fail']].forEach(([id,v])=>$('#'+id).onclick=()=>{PFF=v;$('#pfA').className=v==='all'?'on':'';$('#pfF').className=v==='fail'?'on':'';if(DCTX)pfr(...DCTX)});
 ['fEx','fCa','fBa','fSm'].forEach(id=>$('#'+id).onchange=()=>{F.exam=$('#fEx').value;F.campus=$('#fCa').value;F.batch=id==='fCa'?'all':$('#fBa').value;F.sem=id==='fCa'||id==='fBa'?'all':$('#fSm').value;opts();render()});
 [['tTop','top'],['tLow','low']].forEach(([id,v])=>$('#'+id).onclick=()=>{tab=v;$('#tTop').className=v==='top'?'on':'';$('#tLow').className=v==='low'?'on':'';render()});
 // ===== Loader =====
