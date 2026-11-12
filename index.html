@@ -53,6 +53,7 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 <div class="kpis" id="kpis"></div>
 <section><div class="sh"><h2>Student performance by semester</h2><button data-dl="funnel">⬇ CSV</button></div><div class="w" id="funnel"></div><p class="note" id="funNote"></p></section>
 <section><div class="sh"><h2 id="distT">Score distribution</h2><button data-dl="dist">⬇ CSV</button></div><div id="dist"></div><div id="distL" style="margin-top:16px"></div><p class="note" id="distN"></p></section>
+<section><div class="sh"><h2 id="tierT">Top 10% · Next 50% · Last 40%</h2><button id="tierCsv">⬇ CSV</button></div><div id="tier"></div><div id="tierL" style="margin-top:16px"></div><p class="note" id="tierN"></p></section>
 <section><div class="sh"><h2>End term marks status</h2><button data-dl="tbl:#trkEnd">⬇ CSV</button></div><div class="w" id="trkEnd"></div><p class="note">Tap a Subject-wise cell to filter the dashboard to that batch and exam.</p></section>
 <section><div class="sh"><h2>Mid term marks status</h2><button data-dl="tbl:#trkMid">⬇ CSV</button></div><div class="w" id="trkMid"></div></section>
 <section><div class="sh"><h2>Top performers</h2><button data-dl="tbl:#perf">⬇ CSV</button></div><div style="margin-bottom:8px"><button id="tTop" class="on">Top 10</button> <button id="tLow">Needs attention</button></div><div class="w" id="perf"></div></section>
@@ -66,7 +67,7 @@ const exL=e=>/^midterm_(\d+)$/.test(e)?e.replace(/^midterm_(\d+)$/,'Mid-term $1'
 const REQ=['id','Student_name','campus_name','admission_year','Semester','course_id','course_name','exam_type','obtained_grades_text','max_grades','Marks','cplm_id'];
 const API_URL='https://script.google.com/macros/s/AKfycbx5wXN2u-Z0pun9zaxMVfUpxha3zqh_1TpNachmHYvOCWbmuNurnbr-Ecjg28SFzydhwQ/exec';
 // [campus, batch year, current semester]: End term is tracked for semesters 1..N, Mid term only for N.
-const PLAN_ALL=[['GDG',2023,7],['ADYPU',2024,5],['ADYPU',2025,3],['SSU',2024,5],['SSU',2025,3],['SAGE',2025,3],['SAGESELECT',2024,5],['VGUJ',2025,3]];
+const PLAN_ALL=[['GDG',2023,7],['ADYPU',2024,5],['ADYPU',2025,3],['SSU',2024,5],['SSU',2025,3],['SAGE',2025,3],['SAGESELECT',2024,5],['VGUJ',2025,3],['IITM',2026,1]];
 let PLAN=[],UPD=0,CRED=null;try{CRED=JSON.parse(sessionStorage.getItem('cr')||'null')}catch(e){}
 const skf=(c,y,l)=>c+'|'+y+'|'+String(l).replace(/(semester|trimester)\s*/i,'S').trim();
 function grp(a,f){const m=new Map();a.forEach(r=>{const k=f(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)});return m}
@@ -126,9 +127,9 @@ function render(){
  const maxS=Math.max(1,...fl.flatMap(q=>Object.keys(q.sv).map(Number))),sems=[];for(let i=1;i<=maxS;i++)sems.push(i);
  const pre=fl.length&&fl.every(q=>q.campus==='SAGESELECT')?'Trimester ':'Sem ';
  $('#funnel').className='w'+(topOnly?'':' fun');
- $('#funnel').innerHTML=!CUM.length?'<p class="note">Cumulative data not loaded.</p>':shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">${pre}${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(nv(v))};font-weight:600">${fv(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No cumulative marks for this filter.</p>';
+ $('#funnel').innerHTML=!CUM.length?'<p class="note">Cumulative data not loaded.</p>':shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">${pre}${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(nv(v))};font-weight:600">${fv(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No cumulative marks for this filter.'+(CUM.filter(selB).length?' (Is exam ke liye cumulative marks nahi mile.)':' Cumulative sheet se is campus/batch ke 0 rows aaye ('+CUM.length+' rows loaded). Refresh data dabao aur Apps Script ka cumulative read check karo.')+'</p>';
  $('#funNote').textContent=(topOnly?'Top 10 by overall average. Select a campus or batch to see everyone. ':fl.length+' students, sorted by overall average. ')+'% = obtained ÷ max marks (cumulative sheet). A dash means no marks for that semester.';
- dist(fl,sems,pre)}
+ dist(fl,sems,pre);tier(fl,sems,pre)}
 // ===== Score distribution (bands) =====
 let DSEL=null,DCTX=null;
 const BN=[['Below 50%','var(--bad)'],['50–75%','var(--wn)'],['75–90%','var(--ac)'],['90–100%','var(--ok)']];
@@ -192,6 +193,36 @@ document.addEventListener('click',e=>{
   sems.forEach(n=>o.push(r('Semester',pre+n,cnts(fl.map(q=>q.sv[n]).filter(v=>v!=null)))));
   [...grp(fl,q=>q.bl)].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([k2,a])=>o.push(r('Campus x batch',k2,cnts(a.map(q=>q.avg)))));
   csv('score_distribution_'+w,o)}});
+// ===== Top 10% / Next 50% / Last 40% =====
+let TSEL=null,TCTX=null,TG=[];
+const TN=[['Top 10%','var(--ok)'],['Next 50%','var(--ac)'],['Last 40%','var(--bad)']];
+function tiers(a){const n=a.length,s=[...a].sort((x,y)=>y.avg-x.avg),t=n?Math.max(1,Math.round(n*.1)):0,m=Math.max(t,Math.round(n*.6));return[s.slice(0,t),s.slice(t,m),s.slice(m)]}
+function tgroups(fl){
+ const o=[],by=(f)=>[...grp(fl,f)].sort((a,b)=>a[0].localeCompare(b[0]));
+ if(F.batch!=='all')o.push([fl[0].bl,fl]);
+ else{by(q=>q.campus).forEach(([c,a])=>o.push([c,a]));
+  if(F.campus!=='all'){const g=by(q=>q.bl);if(g.length>1)g.forEach(([k,a])=>o.push(['↳ '+k,a]))}}
+ return o}
+const rng=a=>a.length?(Math.min(...a.map(q=>q.avg)).toFixed(1)+'–'+Math.max(...a.map(q=>q.avg)).toFixed(1)+'%'):'';
+function tier(fl,sems,pre){
+ TCTX=[fl,sems,pre];const T=$('#tier');
+ if(!CUM.length||!fl.length){T.innerHTML='<p class="note">No cumulative marks for this filter.</p>';$('#tierL').innerHTML='';$('#tierN').textContent='';TG=[];return}
+ TG=tgroups(fl).map(([l,a])=>({l,a,t:tiers(a)}));
+ if(TSEL&&!TG.some(g=>g.l===TSEL.l))TSEL=null;
+ T.innerHTML='<div class="w"><table><tr><th>Campus / Batch</th><th class="n">Students</th>'+TN.map(x=>`<th class="n" style="color:${x[1]}">${x[0]}</th>`).join('')+'</tr>'+TG.map(g=>`<tr><td>${esc(g.l)}</td><td class="n"><b>${g.a.length}</b></td>`+g.t.map((x,i)=>`<td class="n${x.length?' bd':''}${TSEL&&TSEL.l===g.l&&TSEL.i===i?' sel':''}"${x.length?` data-tg="${esc(g.l)}" data-ti="${i}"`:''}><b>${x.length}</b> <span class="sub">(${(x.length/g.a.length*100).toFixed(0)}%)</span><div class="sub">${rng(x)}</div></td>`).join('')+'</tr>').join('')+'</table></div>';
+ $('#tierN').textContent='Ranking overall % (cumulative sheet) ke hisaab se, har campus/batch ke andar alag. Top 10% / next 50% / last 40% students ki rounding se count banti hai. Kisi count pe click karo to students ki list khulegi.';
+ tierList()}
+function tierList(){
+ const L=$('#tierL');
+ if(!TSEL||!TCTX){L.innerHTML='';return}
+ const g=TG.find(x=>x.l===TSEL.l);if(!g){L.innerHTML='';return}
+ const [fl,sems,pre]=TCTX,a=g.t[TSEL.i],off=g.t.slice(0,TSEL.i).reduce((n,x)=>n+x.length,0),bl='border-left:1px solid var(--bd)',lbl=TN[TSEL.i][0]+' · '+g.l;
+ L.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><h3 style="font-size:14px;margin:0">${esc(lbl)} · ${a.length} students</h3><span><button id="tierLCsv">⬇ CSV</button> <button id="tierX">Close</button></span></div><div class="w fun"><table><tr><th>Rank</th><th>Student</th><th>Batch</th>`+sems.map(n=>`<th style="${bl}">${pre}${n}</th>`).join('')+`<th class="n" style="${bl}">Overall</th></tr>`+a.map((q,i)=>`<tr><td>${off+i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(v)};font-weight:600">${pc(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table></div>';
+ $('#tierX').onclick=()=>{TSEL=null;tier(...TCTX)};
+ $('#tierLCsv').onclick=()=>csv('tier_'+TN[TSEL.i][0]+'_'+g.l+'_'+fwho(),[['Rank','Student','Batch',...sems.map(n=>pre+n+' %'),'Overall %'],...a.map((q,i)=>[off+i+1,q.name,q.bl,...sems.map(n=>q.sv[n]==null?'':q.sv[n].toFixed(1)),q.avg.toFixed(1)])])}
+$('#tier').onclick=e=>{const t=e.target.closest('[data-tg]');if(!t||!TCTX)return;const n={l:t.dataset.tg,i:+t.dataset.ti};TSEL=TSEL&&TSEL.l===n.l&&TSEL.i===n.i?null:n;tier(...TCTX);if(TSEL)$('#tierL').scrollIntoView({behavior:'smooth',block:'nearest'})};
+$('#tierCsv').onclick=()=>{if(!TG.length){alert('Is section me download karne ke liye data nahi hai.');return}
+ csv('tier_summary_'+fwho(),[['Campus / Batch','Students',...TN.flatMap(x=>[x[0]+' count',x[0]+' % range'])],...TG.map(g=>[g.l,g.a.length,...g.t.flatMap(x=>[x.length,rng(x)])])])};
 ['fEx','fCa','fBa','fSm'].forEach(id=>$('#'+id).onchange=()=>{F.exam=$('#fEx').value;F.campus=$('#fCa').value;F.batch=id==='fCa'?'all':$('#fBa').value;F.sem=id==='fCa'||id==='fBa'?'all':$('#fSm').value;opts();render()});
 [['tTop','top'],['tLow','low']].forEach(([id,v])=>$('#'+id).onclick=()=>{tab=v;$('#tTop').className=v==='top'?'on':'';$('#tLow').className=v==='low'?'on':'';render()});
 // ===== Loader =====
