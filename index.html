@@ -68,7 +68,7 @@ const REQ=['id','Student_name','campus_name','admission_year','Semester','course
 const API_URL='https://script.google.com/macros/s/AKfycbx5wXN2u-Z0pun9zaxMVfUpxha3zqh_1TpNachmHYvOCWbmuNurnbr-Ecjg28SFzydhwQ/exec';
 // [campus, batch year, current semester]: End term is tracked for semesters 1..N, Mid term only for N.
 const PLAN_ALL=[['GDG',2023,7],['ADYPU',2024,5],['ADYPU',2025,3],['SSU',2024,5],['SSU',2025,3],['SAGE',2025,3],['SAGESELECT',2024,5],['VGUJ',2025,3],['IITM',2026,1]];
-let PLAN=[],UPD=0,CRED=null;try{CRED=JSON.parse(sessionStorage.getItem('cr')||'null')}catch(e){}
+let PLAN=[],UPD=0,DG=null,CRED=null;try{CRED=JSON.parse(sessionStorage.getItem('cr')||'null')}catch(e){}
 const skf=(c,y,l)=>c+'|'+y+'|'+String(l).replace(/(semester|trimester)\s*/i,'S').trim();
 function grp(a,f){const m=new Map();a.forEach(r=>{const k=f(r);if(!m.has(k))m.set(k,[]);m.get(k).push(r)});return m}
 const canon=et=>/^midterm_\d+$/.test(et)?et:/end/i.test(et)?'endterm':et;
@@ -100,7 +100,7 @@ const cnt=(a,k)=>a.filter(r=>r.st===k).length;
 function render(){
  const selB=r=>(F.campus==='all'||r.campus===F.campus)&&(F.batch==='all'||r.campus+'|'+r.yr===F.batch);
  const rows=ROWS.filter(r=>(F.exam==='all'||r.ex===F.exam)&&selB(r)&&(F.sem==='all'||String(r.n)===F.sem)),base=[...ROWS.filter(selB),...CUM.filter(selB)];
- $('#meta').textContent='Updated '+new Date(UPD).toLocaleString()+' · '+ROWS.length+' subject-wise and '+CUM.length+' cumulative entries';
+ $('#meta').textContent='Updated '+new Date(UPD).toLocaleString()+' · '+ROWS.length+' subject-wise and '+CUM.length+' cumulative entries'+(DG?' · Cumulative tab "'+DG.cumTab+'" ('+DG.cumSrc+')':'');
  const tot=rows.length,sc=cnt(rows,'scored'),ab=cnt(rows,'absent'),stu=grp(rows,r=>r.id),avgAll=mean(rows.filter(r=>r.st==='scored').map(r=>r.pct));
  const K=(v,l,s)=>`<div class="k"><b>${v}</b><span>${l}</span>${s?`<small>${s}</small>`:''}</div>`;
  $('#kpis').innerHTML=K(new Set(base.map(r=>r.id)).size,'Total students',F.exam==='all'?'':stu.size+' appeared in this exam')+K(tot?((sc+ab)/tot*100).toFixed(0)+'%':'–','Marks uploaded',(sc+ab)+' of '+tot+' entries')+K(pc(avgAll),'Average score',sc+' scored entries');
@@ -110,7 +110,10 @@ function render(){
  const av=e=>{if(!e||!e.length)return['bad','Not available',''];const t=e.length,u=cnt(e,'scored')+cnt(e,'absent'),sj=[...grp(e,r=>r.cid)],sd=sj.filter(([i,x])=>cnt(x,'scored')+cnt(x,'absent')===x.length).length;return[u===t?'ok':u?'wn':'bad',u===t?'Available':u?'Partial':'Not available',sd+'/'+sj.length+' subjects']};
  const avC=e=>{if(!e||!e.length)return['bad','Not available',''];const t=e.length,u=cnt(e,'scored');return[u===t?'ok':u?'wn':'bad',u===t?'Available':u?'Partial':'Not available',u+'/'+t+' students']};
  const bs=[];
- PLAN.forEach(([c,y,m])=>{if((F.campus!=='all'&&F.campus!==c)||(F.batch!=='all'&&F.batch!==c+'|'+y))return;for(let n=1;n<=m;n++)bs.push({campus:c,yr:y,n,sk:c+'|'+y+'|S'+n,mid:n===m})});
+ const PX=[...PLAN],pk=new Set(PLAN.map(p=>p[0]+'|'+p[1])),mxs=new Map();
+ ROWS.forEach(r=>{const k=r.campus+'|'+r.yr;mxs.set(k,Math.max(mxs.get(k)||0,r.n||0))});
+ mxs.forEach((m,k)=>{if(!pk.has(k)&&m){const i=k.indexOf('|');PX.push([k.slice(0,i),k.slice(i+1),m])}});
+ PX.forEach(([c,y,m])=>{if((F.campus!=='all'&&F.campus!==c)||(F.batch!=='all'&&F.batch!==c+'|'+y))return;for(let n=1;n<=m;n++)bs.push({campus:c,yr:y,n,sk:c+'|'+y+'|S'+n,mid:n===m})});
  const bl='border-left:1px solid var(--bd)',dash=`<td style="${bl};color:var(--mu)">–</td><td style="color:var(--mu)">–</td>`;
  const T=(id,tc,list)=>{
   $(id).innerHTML=list.length?'<table><tr><th rowspan="2">Campus</th><th rowspan="2">Batch</th><th rowspan="2">Semester</th>'+tc.map(c=>`<th colspan="2" style="text-align:center;${bl}">${esc(exL(c))}</th>`).join('')+'</tr><tr>'+tc.map(()=>`<th style="${bl}">Subject-wise</th><th>Cumulative</th>`).join('')+'</tr>'+list.map(b=>'<tr><td>'+esc(b.campus)+'</td><td>'+b.yr+'</td><td>'+b.n+'</td>'+tc.map(c=>{if(!(c==='endterm'||b.mid))return dash;const x=av(gS.get(b.sk+'|'+c)),m=CUM.length?avC(gC.get(b.sk+'|'+c)):['bad','Not available','file not loaded'],has=gS.has(b.sk+'|'+c);return`<td ${has?`class="clk" data-c="${esc(b.campus)}" data-y="${b.yr}" data-n="${b.n}" data-e="${esc(c)}"`:''} style="${bl}"><span class="chip ${x[0]}">${x[1]}</span><div class="sub">${x[2]}</div></td><td><span class="chip ${m[0]}">${m[1]}</span><div class="sub">${m[2]}</div></td>`}).join('')+'</tr>').join('')+'</table>':'<p class="note">Nothing to show for this filter.</p>';
@@ -127,7 +130,7 @@ function render(){
  const maxS=Math.max(1,...fl.flatMap(q=>Object.keys(q.sv).map(Number))),sems=[];for(let i=1;i<=maxS;i++)sems.push(i);
  const pre=fl.length&&fl.every(q=>q.campus==='SAGESELECT')?'Trimester ':'Sem ';
  $('#funnel').className='w'+(topOnly?'':' fun');
- $('#funnel').innerHTML=!CUM.length?'<p class="note">Cumulative data not loaded.</p>':shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">${pre}${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(nv(v))};font-weight:600">${fv(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No cumulative marks for this filter.'+(CUM.filter(selB).length?' (Is exam ke liye cumulative marks nahi mile.)':' Cumulative sheet se is campus/batch ke 0 rows aaye ('+CUM.length+' rows loaded). Refresh data dabao aur Apps Script ka cumulative read check karo.')+'</p>';
+ $('#funnel').innerHTML=!CUM.length?'<p class="note">Cumulative data not loaded.</p>':shown.length?'<table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(i=>`<th style="${bl}">${pre}${i}</th>`).join('')+'<th class="n" style="'+bl+'">Overall</th></tr>'+shown.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(nv(v))};font-weight:600">${fv(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table>':'<p class="note">No cumulative marks for this filter.'+(CUM.filter(selB).length?' (Is exam ke liye cumulative marks nahi mile.)':' Cumulative sheet se is campus/batch ke 0 rows aaye ('+CUM.length+' rows loaded). Refresh data dabao.'+(DG?' Cumulative tab "'+DG.cumTab+'" me campus: '+Object.entries(DG.cumCampuses).map(e=>e.join(' ')).join(', ')+'.':' Apps Script ka cumulative read check karo.'))+'</p>';
  $('#funNote').textContent=(topOnly?'Top 10 by overall average. Select a campus or batch to see everyone. ':fl.length+' students, sorted by overall average. ')+'% = obtained ÷ max marks (cumulative sheet). A dash means no marks for that semester.';
  dist(fl,sems,pre);tier(fl,sems,pre)}
 // ===== Score distribution (bands) =====
@@ -198,10 +201,9 @@ let TSEL=null,TCTX=null,TG=[];
 const TN=[['Top 10%','var(--ok)'],['Next 50%','var(--ac)'],['Last 40%','var(--bad)']];
 function tiers(a){const n=a.length,s=[...a].sort((x,y)=>y.avg-x.avg),t=n?Math.max(1,Math.round(n*.1)):0,m=Math.max(t,Math.round(n*.6));return[s.slice(0,t),s.slice(t,m),s.slice(m)]}
 function tgroups(fl){
- const o=[],by=(f)=>[...grp(fl,f)].sort((a,b)=>a[0].localeCompare(b[0]));
- if(F.batch!=='all')o.push([fl[0].bl,fl]);
- else{by(q=>q.campus).forEach(([c,a])=>o.push([c,a]));
-  if(F.campus!=='all'){const g=by(q=>q.bl);if(g.length>1)g.forEach(([k,a])=>o.push(['↳ '+k,a]))}}
+ const o=[],srt=g=>g.sort((x,y)=>String(x[0]).localeCompare(String(y[0])));
+ if(F.batch!=='all'){o.push([fl[0].bl,fl]);return o}
+ srt([...grp(fl,q=>q.campus)]).forEach(([c,a])=>{const g=srt([...grp(a,q=>q.bl)]);g.forEach(([k,x])=>o.push([k,x]));if(g.length>1)o.push([c+' · all batches',a])});
  return o}
 const rng=a=>a.length?(Math.min(...a.map(q=>q.avg)).toFixed(1)+'–'+Math.max(...a.map(q=>q.avg)).toFixed(1)+'%'):'';
 function tier(fl,sems,pre){
@@ -210,7 +212,7 @@ function tier(fl,sems,pre){
  TG=tgroups(fl).map(([l,a])=>({l,a,t:tiers(a)}));
  if(TSEL&&!TG.some(g=>g.l===TSEL.l))TSEL=null;
  T.innerHTML='<div class="w"><table><tr><th>Campus / Batch</th><th class="n">Students</th>'+TN.map(x=>`<th class="n" style="color:${x[1]}">${x[0]}</th>`).join('')+'</tr>'+TG.map(g=>`<tr><td>${esc(g.l)}</td><td class="n"><b>${g.a.length}</b></td>`+g.t.map((x,i)=>`<td class="n${x.length?' bd':''}${TSEL&&TSEL.l===g.l&&TSEL.i===i?' sel':''}"${x.length?` data-tg="${esc(g.l)}" data-ti="${i}"`:''}><b>${x.length}</b> <span class="sub">(${(x.length/g.a.length*100).toFixed(0)}%)</span><div class="sub">${rng(x)}</div></td>`).join('')+'</tr>').join('')+'</table></div>';
- $('#tierN').textContent='Ranking overall % (cumulative sheet) ke hisaab se, har campus/batch ke andar alag. Top 10% / next 50% / last 40% students ki rounding se count banti hai. Kisi count pe click karo to students ki list khulegi.';
+ $('#tierN').textContent='Ranking overall % (cumulative sheet) ke hisaab se, har campus × batch ke andar alag (batch-wise rank). Jis campus me 1 se zyada batch hain, uske neeche "all batches" wali row sabko milake rank karti hai. Top 10% / next 50% / last 40% students ki rounding se count banti hai. Kisi count pe click karo to students ki list khulegi.';
  tierList()}
 function tierList(){
  const L=$('#tierL');
@@ -237,7 +239,7 @@ async function loadData(fresh){
  try{
   const r=await fetch(API_URL,{method:'POST',body:JSON.stringify({...CRED,refresh:!!fresh})}),j=await r.json();
   if(j.error){CRED=null;sessionStorage.removeItem('cr');showLogin(j.error);return}
-  ROWS=normSub(j.subject);CUM=normCum(j.cumulative);UPD=j.updated;
+  ROWS=normSub(j.subject);CUM=normCum(j.cumulative);UPD=j.updated;DG=j.diag||null;
   PLAN=j.user.role==='admin'?PLAN_ALL:PLAN_ALL.filter(p=>j.user.campuses.includes(p[0].toUpperCase()));
   $('#login').hidden=true;$('#app').hidden=false;$('#err').textContent='';
   $('#who').textContent=j.user.email+' · '+(j.user.role==='admin'?'Admin':'Viewer: '+j.user.campuses.join(', '));
