@@ -40,6 +40,7 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 #ld .lb i{display:block;height:100%;width:0;background:var(--ac);border-radius:6px;transition:width .15s linear}
 #ld .lp{color:var(--mu);font-size:13px}
 .fun{max-height:520px;overflow:auto}
+.sh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}.sh h2{margin:0}
 .bd{cursor:pointer}.bd:hover{background:var(--bg)}.bd.sel{outline:2px solid var(--ac);outline-offset:-2px;font-weight:700}
 </style></head><body>
 <div id="ld" hidden role="status" aria-live="polite"><div class="lt" id="ltx">Data loading…</div><div class="lb"><i id="lbar"></i></div><div class="lp" id="lpc">0%</div></div>
@@ -50,11 +51,11 @@ th{color:var(--mu);font-weight:600;font-size:12.5px}td.n,th.n{text-align:right}
 <div class="msg" id="err"></div>
 <div class="bar-f"><select id="fEx" aria-label="Exam"></select><select id="fCa" aria-label="Campus"></select><select id="fBa" aria-label="Batch"></select><select id="fSm" aria-label="Semester"></select></div>
 <div class="kpis" id="kpis"></div>
-<section><h2>Student performance by semester</h2><div class="w" id="funnel"></div><p class="note" id="funNote"></p></section>
-<section><h2 id="distT">Score distribution</h2><div id="dist"></div><div id="distL" style="margin-top:16px"></div><p class="note" id="distN"></p></section>
-<section><h2>End term marks status</h2><div class="w" id="trkEnd"></div><p class="note">Tap a Subject-wise cell to filter the dashboard to that batch and exam.</p></section>
-<section><h2>Mid term marks status</h2><div class="w" id="trkMid"></div></section>
-<section><h2>Top performers</h2><div style="margin-bottom:8px"><button id="tTop" class="on">Top 10</button> <button id="tLow">Needs attention</button></div><div class="w" id="perf"></div></section>
+<section><div class="sh"><h2>Student performance by semester</h2><button data-dl="funnel">⬇ CSV</button></div><div class="w" id="funnel"></div><p class="note" id="funNote"></p></section>
+<section><div class="sh"><h2 id="distT">Score distribution</h2><button data-dl="dist">⬇ CSV</button></div><div id="dist"></div><div id="distL" style="margin-top:16px"></div><p class="note" id="distN"></p></section>
+<section><div class="sh"><h2>End term marks status</h2><button data-dl="tbl:#trkEnd">⬇ CSV</button></div><div class="w" id="trkEnd"></div><p class="note">Tap a Subject-wise cell to filter the dashboard to that batch and exam.</p></section>
+<section><div class="sh"><h2>Mid term marks status</h2><button data-dl="tbl:#trkMid">⬇ CSV</button></div><div class="w" id="trkMid"></div></section>
+<section><div class="sh"><h2>Top performers</h2><button data-dl="tbl:#perf">⬇ CSV</button></div><div style="margin-bottom:8px"><button id="tTop" class="on">Top 10</button> <button id="tLow">Needs attention</button></div><div class="w" id="perf"></div></section>
 </main>
 <script>
 let CUM=[],ROWS=[],F={exam:'all',campus:'all',batch:'all',sem:'all'},tab='top',fname='mid_sem_-_Sheet4.csv';
@@ -144,8 +145,9 @@ function distList(fl,sems,pre){
  const a=fl.filter(q=>(s!=='b'||q.bl===k)&&val(q)!=null&&bi(val(q))===b).sort((x,y)=>val(y)-val(x));
  const lbl=BN[b][0]+(s==='s'?' · '+pre+k:s==='b'?' · '+k:'');
  const bl='border-left:1px solid var(--bd)';
- L.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><h3 style="font-size:14px;margin:0">${esc(lbl)} · ${a.length} students</h3><button id="distX">Close</button></div>`+(a.length?'<div class="w fun"><table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(n=>`<th style="${bl}">${pre}${n}</th>`).join('')+`<th class="n" style="${bl}">Overall</th></tr>`+a.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(v)};font-weight:600">${pc(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table></div>':'<p class="note">Is band me koi student nahi.</p>');
- $('#distX').onclick=()=>{DSEL=null;dist(...DCTX)}}
+ L.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><h3 style="font-size:14px;margin:0">${esc(lbl)} · ${a.length} students</h3><span><button id="distCsv">⬇ CSV</button> <button id="distX">Close</button></span></div>`+(a.length?'<div class="w fun"><table><tr><th>#</th><th>Student</th><th>Batch</th>'+sems.map(n=>`<th style="${bl}">${pre}${n}</th>`).join('')+`<th class="n" style="${bl}">Overall</th></tr>`+a.map((q,i)=>`<tr><td>${i+1}</td><td>${esc(q.name)}</td><td>${esc(q.bl)}</td>`+sems.map(n=>{const v=q.sv[n];return v==null?`<td style="${bl};color:var(--mu)">–</td>`:`<td style="${bl};color:${col(v)};font-weight:600">${pc(v)}</td>`}).join('')+`<td class="n" style="${bl};color:${col(q.avg)};font-weight:700">${pc(q.avg)}</td></tr>`).join('')+'</table></div>':'<p class="note">Is band me koi student nahi.</p>');
+ $('#distX').onclick=()=>{DSEL=null;dist(...DCTX)};
+ $('#distCsv').onclick=()=>csv('students_'+lbl+'_'+fwho(),[['#','Student','Batch',...sems.map(n=>pre+n+' %'),'Overall %'],...a.map((q,i)=>[i+1,q.name,q.bl,...sems.map(n=>q.sv[n]==null?'':q.sv[n].toFixed(1)),q.avg.toFixed(1)])])}
 function dist(fl,sems,pre){
  DCTX=[fl,sems,pre];
  const D=$('#dist');
@@ -161,6 +163,35 @@ function dist(fl,sems,pre){
  $('#distN').textContent='Student ka overall % = uske semesters ke % ka average. Semester-wise me us semester ke marks wale students hi ginte hain. Kisi bhi band pe click karo to students ki list khulegi.';
  distList(fl,sems,pre)}
 $('#dist').onclick=e=>{const t=e.target.closest('[data-b]');if(!t||!DCTX)return;const n={s:t.dataset.s,k:t.dataset.k,b:+t.dataset.b};DSEL=isSel(n.s,n.k,n.b)?null:n;dist(...DCTX);if(DSEL)$('#distL').scrollIntoView({behavior:'smooth',block:'nearest'})};
+// ===== CSV download =====
+function csv(name,rows){
+ if(!rows||rows.length<2){alert('Is section me download karne ke liye data nahi hai.');return}
+ const q=v=>{v=v==null?'':String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+ const blob=new Blob(['\ufeff'+rows.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+ a.download=name.replace(/[^\w\u0900-\u097F\-]+/g,'_').replace(/_+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.csv';
+ document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+const fwho=()=>(F.batch!=='all'?F.batch.replace('|','_'):F.campus!=='all'?F.campus:'all_campuses')+(F.exam!=='all'?'_'+F.exam:'')+(F.sem!=='all'?'_sem'+F.sem:'');
+function tbl2rows(t){
+ if(!t)return[];const g=[],hd=[];
+ [...t.rows].forEach((tr,r)=>{g[r]=g[r]||[];if(!tr.querySelector('td'))hd.push(r);let c=0;
+  [...tr.cells].forEach(td=>{while(g[r][c]!==undefined)c++;const x=td.innerText.replace(/\s*\n\s*/g,' · ').trim(),cs=td.colSpan||1,rs=td.rowSpan||1;
+   for(let i=0;i<rs;i++){g[r+i]=g[r+i]||[];for(let j=0;j<cs;j++)g[r+i][c+j]=x}c+=cs})});
+ if(hd.length>1){const n=Math.max(...hd.map(r=>g[r].length)),m=[];
+  for(let c=0;c<n;c++){const p=[];hd.forEach(r=>{const x=g[r][c];if(x&&!p.includes(x))p.push(x)});m.push(p.join(' – '))}
+  return[m,...g.slice(hd[hd.length-1]+1)]}
+ return g}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('[data-dl]');if(!b)return;const k=b.dataset.dl,w=fwho();
+ if(k.startsWith('tbl:')){csv(k.slice(4).replace('#','')+'_'+w,tbl2rows($(k.slice(4)+' table')));return}
+ if(!DCTX||!CUM.length){alert('Cumulative data load nahi hua hai.');return}
+ const [fl,sems,pre]=DCTX;
+ if(k==='funnel')csv('students_by_semester_'+w,[['Student','Batch',...sems.map(n=>pre+n+' %'),'Overall %'],...fl.map(q=>[q.name,q.bl,...sems.map(n=>q.sv[n]==null?'':q.sv[n].toFixed(1)),q.avg.toFixed(1)])]);
+ if(k==='dist'){const r=(l,x,c)=>[l,x,c.reduce((a,b)=>a+b,0),...c];
+  const o=[['Level','Label','Students',...BN.map(b=>b[0])],r('Overall','All students',cnts(fl.map(q=>q.avg)))];
+  sems.forEach(n=>o.push(r('Semester',pre+n,cnts(fl.map(q=>q.sv[n]).filter(v=>v!=null)))));
+  [...grp(fl,q=>q.bl)].sort((a,b)=>a[0].localeCompare(b[0])).forEach(([k2,a])=>o.push(r('Campus x batch',k2,cnts(a.map(q=>q.avg)))));
+  csv('score_distribution_'+w,o)}});
 ['fEx','fCa','fBa','fSm'].forEach(id=>$('#'+id).onchange=()=>{F.exam=$('#fEx').value;F.campus=$('#fCa').value;F.batch=id==='fCa'?'all':$('#fBa').value;F.sem=id==='fCa'||id==='fBa'?'all':$('#fSm').value;opts();render()});
 [['tTop','top'],['tLow','low']].forEach(([id,v])=>$('#'+id).onclick=()=>{tab=v;$('#tTop').className=v==='top'?'on':'';$('#tLow').className=v==='low'?'on':'';render()});
 // ===== Loader =====
