@@ -76,8 +76,9 @@ const canon=et=>/^midterm_\d+$/.test(et)?et:/end/i.test(et)?'endterm':et;
 function normSub(d){return d.filter(r=>r.id).map(r=>{
  const m=(r.Marks||'').trim(),o=(r.obtained_grades_text||'').trim(),mx=parseFloat(r.max_grades),v=parseFloat(o);
  let st='scored';
- if(m==='Not Available'||o==='')st='pending';else if(m==='Incorrect')st='incorrect';
- else if(o.toUpperCase()==='AB')st='absent';else if(isNaN(v))st=(m==='Available'&&/^[A-F][+-]?$/i.test(o))?'graded':'incorrect';
+ if(o==='')st='pending';
+ else if(o.toUpperCase()==='AB')st='absent';
+ else if(isNaN(v))st='graded';
  const sem=(r.Semester||'').replace('Semester ','Sem ');
  return{id:r.id,name:r.Student_name,campus:r.campus_name,bid:r.cplm_id,yr:r.admission_year,sm:sem,sk:skf(r.campus_name,r.admission_year,r.Semester),n:+((sem.match(/\d+/)||[0])[0]),bl:r.campus_name+' · '+r.admission_year+' batch',
   cid:r.course_id,course:(r.course_name||'').replace(/[\u2060\u200b]/g,'').replace(/ - Exam$/,'').trim(),ex:canon(r.exam_type||''),mx,st,pct:st==='scored'&&mx?v/mx*100:null}})}
