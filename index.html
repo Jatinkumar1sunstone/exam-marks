@@ -77,7 +77,7 @@ function normSub(d){return d.filter(r=>r.id).map(r=>{
  const m=(r.Marks||'').trim(),o=(r.obtained_grades_text||'').trim(),mx=parseFloat(r.max_grades),v=parseFloat(o);
  let st='scored';
  if(m==='Not Available'||o==='')st='pending';else if(m==='Incorrect')st='incorrect';
- else if(o.toUpperCase()==='AB')st='absent';else if(isNaN(v))st='incorrect';
+ else if(o.toUpperCase()==='AB')st='absent';else if(isNaN(v))st=(m==='Available'&&/^[A-F][+-]?$/i.test(o))?'graded':'incorrect';
  const sem=(r.Semester||'').replace('Semester ','Sem ');
  return{id:r.id,name:r.Student_name,campus:r.campus_name,bid:r.cplm_id,yr:r.admission_year,sm:sem,sk:skf(r.campus_name,r.admission_year,r.Semester),n:+((sem.match(/\d+/)||[0])[0]),bl:r.campus_name+' · '+r.admission_year+' batch',
   cid:r.course_id,course:(r.course_name||'').replace(/[\u2060\u200b]/g,'').replace(/ - Exam$/,'').trim(),ex:canon(r.exam_type||''),mx,st,pct:st==='scored'&&mx?v/mx*100:null}})}
@@ -102,13 +102,13 @@ function render(){
  const selB=r=>(F.campus==='all'||r.campus===F.campus)&&(F.batch==='all'||r.campus+'|'+r.yr===F.batch);
  const rows=ROWS.filter(r=>(F.exam==='all'||r.ex===F.exam)&&selB(r)&&(F.sem==='all'||String(r.n)===F.sem)),base=[...ROWS.filter(selB),...CUM.filter(selB)];
  $('#meta').textContent='Updated '+new Date(UPD).toLocaleString()+' · '+ROWS.length+' subject-wise and '+CUM.length+' cumulative entries'+(DG?' · Cumulative tab "'+DG.cumTab+'" ('+DG.cumSrc+')':'');
- const tot=rows.length,sc=cnt(rows,'scored'),ab=cnt(rows,'absent'),stu=grp(rows,r=>r.id),avgAll=mean(rows.filter(r=>r.st==='scored').map(r=>r.pct));
+ const tot=rows.length,sc=cnt(rows,'scored'),ab=cnt(rows,'absent')+cnt(rows,'graded'),stu=grp(rows,r=>r.id),avgAll=mean(rows.filter(r=>r.st==='scored').map(r=>r.pct));
  const K=(v,l,s)=>`<div class="k"><b>${v}</b><span>${l}</span>${s?`<small>${s}</small>`:''}</div>`;
  $('#kpis').innerHTML=K(new Set(base.map(r=>r.id)).size,'Total students',F.exam==='all'?'':stu.size+' appeared in this exam')+K(tot?((sc+ab)/tot*100).toFixed(0)+'%':'–','Marks uploaded',(sc+ab)+' of '+tot+' entries')+K(pc(avgAll),'Average score',sc+' scored entries');
  const allx=[...ROWS,...CUM].map(r=>r.ex),mn=Math.max(3,...allx.map(e=>+((e.match(/^midterm_(\d+)$/)||[])[1]||0))),mt=[];
  for(let i=1;i<=mn;i++)mt.push('midterm_'+i);
  const gS=grp(ROWS,r=>r.sk+'|'+r.ex),gC=grp(CUM,r=>r.sk+'|'+r.ex);
- const av=e=>{if(!e||!e.length)return['bad','Not available',''];const t=e.length,u=cnt(e,'scored')+cnt(e,'absent'),sj=[...grp(e,r=>r.cid)],sd=sj.filter(([i,x])=>cnt(x,'scored')+cnt(x,'absent')===x.length).length;return[u===t?'ok':u?'wn':'bad',u===t?'Available':u?'Partial':'Not available',sd+'/'+sj.length+' subjects']};
+ const av=e=>{if(!e||!e.length)return['bad','Not available',''];const t=e.length,up=x=>cnt(x,'scored')+cnt(x,'absent')+cnt(x,'graded'),u=up(e),sj=[...grp(e,r=>r.cid)],sd=sj.filter(([i,x])=>up(x)===x.length).length,g=cnt(e,'graded')>0;return[u===t?'ok':u?'wn':'bad',u===t?(g?'Grades available':'Available'):u?'Partial':'Not available',sd+'/'+sj.length+' subjects']};
  const avC=e=>{if(!e||!e.length)return['bad','Not available',''];const t=e.length,u=cnt(e,'scored');return[u===t?'ok':u?'wn':'bad',u===t?'Available':u?'Partial':'Not available',u+'/'+t+' students']};
  const bs=[];
  const PX=[...PLAN],pk=new Set(PLAN.map(p=>p[0]+'|'+p[1])),mxs=new Map();
